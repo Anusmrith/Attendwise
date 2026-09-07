@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>AttendWise</title>
+
+    <link rel="stylesheet" href="style.css">
+
+</head>
+
+
+<body>
+
+    <!-- AUTH PAGE -->
+
+    <div id="auth-page" class="page">
+
+        <div class="auth-container">
+
+            <div class="brand">
+
+                <h1>Attend<span>Wise</span></h1>
+
+                <p>
+                    Smart attendance management for students.
+                </p>
+
+            </div>
+
+
+            <!-- LOGIN -->
+
+            <div id="login-box" class="auth-box">
+
+                <h2>Welcome back</h2>
+
+                <p class="auth-subtitle">
+                    Login to your account
+                </p>
+
+
+                <form id="login-form">
+
+                    <div class="input-group">
+
+                        <label>Email</label>
+
+                        <input
+                            type="email"
+                            id="login-email"
+                            placeholder="you@example.com"
+                            required
+                        >
+
+                    </div>
+
+
+                    <div class="input-group">
+
+                        <label>Password</label>
+
+                        <input
+                            type="password"
+                            id="login-password"
+                            placeholder="••••••••"
+                            required
+                        >
+
+                    </div>
+
+
+                    <button
+                        type="submit"
+                        class="primary-button"
+                    >
+                        Login
+                    </button>
+
+                </form>
+
+
+                <p
+                    id="login-message"
+                    class="message"
+                ></p>
+
+
+                <p class="switch-auth">
+
+                    Don't have an account?
+
+                    <button
+                        type="button"
+                        onclick="showSignup()"
+                    >
+                        Create one
+                    </button>
+
+                </p>
+
+            </div>
+
+
+            <!-- SIGNUP -->
+
+            <div
+                id="signup-box"
+                class="auth-box hidden"
+            >
+
+                <h2>Create account</h2>
+
+                <p class="auth-subtitle">
+                    Start tracking your attendance
+                </p>
+
+
+                <form id="signup-form">
+
+                    <div class="input-group">
+
+                        <label>Name</label>
+
+                        <input
+                            type="text"
+                            id="signup-name"
+                            placeholder="Your name"
+                            required
+                        >
+
+                    </div>
+
+
+                    <div class="input-group">
+
+                        <label>Email</label>
+
+                        <input
+                            type="email"
+                            id="signup-email"
+                            placeholder="you@example.com"
+                            required
+                        >
+
+                    </div>
+
+
+                    <div class="input-group">
+
+                        <label>Password</label>
+
+                        <input
+                            type="password"
+                            id="signup-password"
+                            placeholder="Minimum 6 characters"
+                            minlength="6"
+                            required
+                        >
+
+                    </div>
+
+
+                    <button
+                        type="submit"
+                        class="primary-button"
+                    >
+                        Create Account
+                    </button>
+
+                </form>
+
+
+                <p
+                    id="signup-message"
+                    class="message"
+                ></p>
+
+
+                <p class="switch-auth">
+
+                    Already have an account?
+
+                    <button
+                        type="button"
+                        onclick="showLogin()"
+                    >
+                        Login
+                    </button>
+
+                </p>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+
+    <!-- DASHBOARD -->
+
+    <div
+        id="dashboard-page"
+        class="page hidden"
+    >
+
+        <header class="navbar">
+
+            <div class="logo">
+                Attend<span>Wise</span>
+            </div>
+
+
+            <div class="nav-right">
+
+                <span id="user-email"></span>
+
+                <button
+                    id="logout-button"
+                    class="logout-button"
+                >
+                    Logout
+                </button>
+
+            </div>
+
+        </header>
+
+
+        <main class="dashboard">
+
+            <section class="welcome-section">
+
+                <div>
+
+                    <p class="tag">
+                        STUDENT DASHBOARD
+                    </p>
+
+                    <h1>
+                        Welcome,
+                        <span id="user-name">
+                            Student
+                        </span>
+                    </h1>
+
+                    <p>
+                        Keep your attendance under control.
+                    </p>
+
+                </div>
+
+            </section>
+
+
+
+            <!-- SUMMARY -->
+
+            <section class="summary-grid">
+
+                <div class="summary-card">
+
+                    <span>Total Subjects</span>
+
+                    <strong id="total-subjects">
+                        0
+                    </strong>
+
+                </div>
+
+
+                <div class="summary-card">
+
+                    <span>Safe</span>
+
+                    <strong id="safe-subjects">
+                        0
+                    </strong>
+
+                </div>
+
+
+                <div class="summary-card">
+
+                    <span>Warning</span>
+
+                    <strong id="warning-subjects">
+                        0
+                    </strong>
+
+                </div>
+
+
+                <div class="summary-card">
+
+                    <span>At Risk</span>
+
+                    <strong id="risk-subjects">
+                        0
+                    </strong>
+
+                </div>
+
+            </section>
+
+
+
+            <!-- ADD SUBJECT -->
+
+            <section class="dashboard-section">
+
+                <div class="section-title">
+
+                    <div>
+
+                        <p class="tag">
+                            ATTENDANCE
+                        </p>
+
+                        <h2>Your Subjects</h2>
+
+                    </div>
+
+                </div>
+
+
+                <div class="add-subject-card">
+
+                    <h3>
+                        Add a subject
+                    </h3>
+
+
+                    <form id="subject-form">
+
+                        <div class="form-grid">
+
+                            <div class="input-group">
+
+                                <label>
+                                    Subject Name
+                                </label>
+
+                                <input
+                                    type="text"
+                                    id="subject-name"
+                                    placeholder="Data Structures"
+                                    required
+                                >
+
+                            </div>
+
+
+                            <div class="input-group">
+
+                                <label>
+                                    Classes Attended
+                                </label>
+
+                                <input
+                                    type="number"
+                                    id="subject-attended"
+                                    min="0"
+                                    placeholder="42"
+                                    required
+                                >
+
+                            </div>
+
+
+                            <div class="input-group">
+
+                                <label>
+                                    Total Classes
+                                </label>
+
+                                <input
+                                    type="number"
+                                    id="subject-total"
+                                    min="1"
+                                    placeholder="50"
+                                    required
+                                >
+
+                            </div>
+
+
+                            <div class="input-group">
+
+                                <label>
+                                    Minimum %
+                                </label>
+
+                                <input
+                                    type="number"
+                                    id="subject-minimum"
+                                    min="1"
+                                    max="100"
+                                    value="75"
+                                    required
+                                >
+
+                            </div>
+
+                        </div>
+
+
+                        <button
+                            type="submit"
+                            class="primary-button"
+                        >
+                            Add Subject
+                        </button>
+
+                    </form>
+
+
+                    <p
+                        id="subject-message"
+                        class="message"
+                    ></p>
+
+                </div>
+
+            </section>
+
+
+
+            <!-- SUBJECT LIST -->
+
+            <section class="subjects-section">
+
+                <div id="subjects-container">
+
+                    <div class="empty-state">
+
+                        <h3>
+                            No subjects yet
+                        </h3>
+
+                        <p>
+                            Add your first subject above.
+                        </p>
+
+                    </div>
+
+                </div>
+
+            </section>
+
+        </main>
+
+
+        <footer>
+
+            <h3>AttendWise</h3>
+
+            <p>
+                Built with HTML, CSS, JavaScript and Supabase.
+            </p>
+
+        </footer>
+
+    </div>
+
+
+    <!-- SUPABASE -->
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <script src="script.js"></script>
+
+</body>
+
+</html>

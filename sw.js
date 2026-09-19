@@ -1,5 +1,5 @@
 // AttendWise Service Worker
-const CACHE_NAME = 'attendwise-cache-v3';
+const CACHE_NAME = 'attendwise-cache-v4';
 const STATIC_ASSETS = [
   './',
   './index.html',

@@ -1232,26 +1232,40 @@ function initEzygoSync() {
     const statusText = document.getElementById("ezygo-status-text");
     const submitBtn = document.getElementById("ezygo-submit-btn");
 
-    function openModal() {
+    async function openModal() {
+        const modalEl = document.getElementById("ezygo-sync-modal");
+        const userInput = document.getElementById("ezygo-username");
+        const statBox = document.getElementById("ezygo-status-box");
+        const subBtn = document.getElementById("ezygo-submit-btn");
+
         if (!currentUser) {
-            alert("Please log in to AttendWise first to sync your EzyGo attendance.");
-            return;
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            if (session) {
+                currentUser = session.user;
+            } else {
+                alert("Please log in to AttendWise first to sync your EzyGo attendance.");
+                return;
+            }
         }
         const savedUser = localStorage.getItem("attendwise-ezygo-username");
-        if (savedUser && usernameInput) {
-            usernameInput.value = savedUser;
+        if (savedUser && userInput) {
+            userInput.value = savedUser;
         }
-        if (statusBox) statusBox.classList.add("hidden");
-        if (submitBtn) {
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = "<span>⚡ Fetch & Import Attendance</span>";
+        if (statBox) statBox.classList.add("hidden");
+        if (subBtn) {
+            subBtn.disabled = false;
+            subBtn.innerHTML = "<span>⚡ Fetch & Import Attendance</span>";
         }
-        if (modal) modal.classList.remove("hidden");
+        if (modalEl) modalEl.classList.remove("hidden");
     }
 
     function closeModal() {
-        if (modal) modal.classList.add("hidden");
+        const modalEl = document.getElementById("ezygo-sync-modal");
+        if (modalEl) modalEl.classList.add("hidden");
     }
+
+    window.openEzygoModal = openModal;
+    window.closeEzygoModal = closeModal;
 
     if (navBtn) navBtn.addEventListener("click", openModal);
     if (sectionBtn) sectionBtn.addEventListener("click", openModal);

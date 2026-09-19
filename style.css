@@ -402,7 +402,12 @@ body {
 
 
 .section-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 12px;
 }
 
 
@@ -985,53 +990,60 @@ footer {
 }
 
 /* ==========================================
-   EZYGO SYNC STYLING
+   EZYGO SYNC STYLING (ATTENDWISE THEME)
    ========================================== */
 
-.ezygo-pill-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    background: linear-gradient(135deg, #6366f1 0%, #4338ca 100%);
-    color: #ffffff;
-    border: none;
-    padding: 7px 14px;
-    border-radius: 50px;
-    font-size: 13px;
-    font-weight: 700;
-    cursor: pointer;
-    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.28);
-    transition: all 0.2s ease;
-}
-
-.ezygo-pill-btn:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 6px 16px rgba(99, 102, 241, 0.4);
-}
-
-.ezygo-quick-btn {
+.nav-ezygo-btn {
     display: inline-flex;
     align-items: center;
     gap: 6px;
     background: #eef2ff;
     color: #4f46e5;
     border: 1px solid #c7d2fe;
-    padding: 8px 14px;
-    border-radius: 10px;
-    font-size: 13px;
+    padding: 8px 15px;
+    border-radius: 8px;
+    font-size: 14px;
     font-weight: 700;
     cursor: pointer;
     transition: all 0.2s ease;
 }
 
-.ezygo-quick-btn:hover {
-    background: #e0e7ff;
-    border-color: #a5b4fc;
+.nav-ezygo-btn:hover {
+    background: #4f46e5;
+    color: #ffffff;
+    border-color: #4f46e5;
+}
+
+.ezygo-sync-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: #4f46e5;
+    color: #ffffff;
+    border: none;
+    padding: 10px 18px;
+    border-radius: 9px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(79, 70, 229, 0.25);
+    transition: all 0.2s ease;
+}
+
+.ezygo-sync-btn:hover {
+    background: #4338ca;
     transform: translateY(-1px);
+    box-shadow: 0 6px 18px rgba(79, 70, 229, 0.35);
+}
+
+.ezygo-sync-btn:active {
+    transform: translateY(0);
 }
 
 .ezygo-modal-card {
-    max-width: 460px;
+    max-width: 440px;
+    border-radius: 16px;
+    padding: 28px;
 }
 
 .ezygo-tag {
@@ -1043,29 +1055,30 @@ footer {
     letter-spacing: 0.5px;
     padding: 3px 8px;
     border-radius: 6px;
-    margin-bottom: 4px;
+    margin-bottom: 6px;
 }
 
 .ezygo-intro {
-    font-size: 13px;
-    color: #64748b;
-    margin-bottom: 16px;
+    font-size: 14px;
+    color: #687386;
+    margin-bottom: 20px;
     line-height: 1.5;
 }
 
 .ezygo-intro code {
     background: #f1f5f9;
     padding: 2px 6px;
-    border-radius: 4px;
-    color: #334155;
+    border-radius: 5px;
+    color: #1e293b;
     font-size: 12px;
+    font-weight: 600;
 }
 
 .ezygo-remember-row {
     display: flex;
     align-items: center;
     gap: 8px;
-    margin-bottom: 16px;
+    margin: 12px 0 18px 0;
     font-size: 13px;
     color: #475569;
 }
@@ -1083,22 +1096,22 @@ footer {
     gap: 10px;
     background: #f8fafc;
     border: 1px solid #e2e8f0;
-    border-radius: 10px;
-    padding: 10px 14px;
-    margin-bottom: 16px;
+    border-radius: 9px;
+    padding: 12px 14px;
+    margin-bottom: 18px;
     font-size: 13px;
     color: #334155;
 }
 
 .ezygo-status-box.error {
-    background: #fef2f2;
-    border-color: #fecaca;
+    background: #fee2e2;
+    border-color: #fca5a5;
     color: #b91c1c;
 }
 
 .ezygo-status-box.success {
-    background: #f0fdf4;
-    border-color: #bbf7d0;
+    background: #dcfce7;
+    border-color: #86efac;
     color: #15803d;
 }
 
@@ -1112,26 +1125,30 @@ footer {
     flex-shrink: 0;
 }
 
-@keyframes spin {
-    to { transform: rotate(360deg); }
-}
-
 .ezygo-submit-btn {
     width: 100%;
+    background: #4f46e5;
+    color: #ffffff;
+    border: none;
+    padding: 13px 22px;
+    border-radius: 9px;
+    font-weight: 700;
+    font-size: 15px;
+    cursor: pointer;
+    transition: 0.2s;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 8px;
-    padding: 12px;
-    font-size: 14px;
-    background: linear-gradient(135deg, #6366f1 0%, #4338ca 100%);
-    box-shadow: 0 4px 14px rgba(79, 70, 229, 0.35);
+}
+
+.ezygo-submit-btn:hover {
+    background: #4338ca;
 }
 
 .ezygo-submit-btn:disabled {
-    opacity: 0.7;
+    opacity: 0.65;
     cursor: not-allowed;
-    box-shadow: none;
 }
 
 .ezygo-security-note {

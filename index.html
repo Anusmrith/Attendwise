@@ -234,7 +234,8 @@
 
                 <button
                     id="ezygo-nav-sync-btn"
-                    class="ezygo-pill-btn"
+                    class="nav-ezygo-btn"
+                    onclick="openEzygoModal()"
                     title="Sync with EzyGo"
                 >
                     <span class="btn-icon">⚡</span>
@@ -360,7 +361,8 @@
 
                     <button
                         id="ezygo-section-sync-btn"
-                        class="ezygo-quick-btn"
+                        class="ezygo-sync-btn"
+                        onclick="openEzygoModal()"
                         title="Sync directly from EzyGo college portal"
                     >
                         <span class="btn-icon">⚡</span>
@@ -556,14 +558,14 @@
     </div>
 
     <!-- EZYGO SYNC MODAL -->
-    <div id="ezygo-sync-modal" class="modal-overlay hidden">
+    <div id="ezygo-sync-modal" class="modal-overlay hidden" onclick="if(event.target===this)closeEzygoModal()">
         <div class="modal-card ezygo-modal-card">
             <div class="modal-header">
                 <div>
                     <span class="ezygo-tag">COLLEGE PORTAL</span>
                     <h3>Sync with EzyGo</h3>
                 </div>
-                <button id="ezygo-modal-close" class="modal-close">&times;</button>
+                <button id="ezygo-modal-close" class="modal-close" onclick="closeEzygoModal()">&times;</button>
             </div>
             <div class="modal-body">
                 <p class="ezygo-intro">Import your subjects and live attendance directly from <code>edu.ezygo.app</code>.</p>

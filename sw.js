@@ -1,5 +1,5 @@
 // AttendWise Service Worker
-const CACHE_NAME = 'attendwise-cache-v6';
+const CACHE_NAME = 'attendwise-cache-v7';
 const STATIC_ASSETS = [
   './',
   './index.html',
@@ -50,21 +50,27 @@ self.addEventListener('fetch', (event) => {
   // Always use network directly for Supabase API requests and CDN external scripts
   if (
     requestUrl.origin.includes('supabase.co') ||
-    requestUrl.origin.includes('jsdelivr.net')
+    requestUrl.origin.includes('jsdelivr.net') ||
+    requestUrl.origin.includes('ezygo.app')
   ) {
     return;
   }
 
-  // Stale-while-revalidate for local static assets
-  event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      const fetchPromise = fetch(event.request)
+  // Network-first for HTML, JS and CSS to ensure instant updates
+  const isCodeAsset = 
+    requestUrl.pathname.endsWith('.js') || 
+    requestUrl.pathname.endsWith('.css') || 
+    requestUrl.pathname.endsWith('.html') ||
+    requestUrl.pathname.endsWith('/') ||
+    event.request.destination === 'script' ||
+    event.request.destination === 'style' ||
+    event.request.destination === 'document';
+
+  if (isCodeAsset) {
+    event.respondWith(
+      fetch(event.request)
         .then((networkResponse) => {
-          if (
-            networkResponse &&
-            networkResponse.status === 200 &&
-            event.request.method === 'GET'
-          ) {
+          if (networkResponse && networkResponse.status === 200 && event.request.method === 'GET') {
             const responseToCache = networkResponse.clone();
             caches.open(CACHE_NAME).then((cache) => {
               cache.put(event.request, responseToCache);
@@ -73,10 +79,25 @@ self.addEventListener('fetch', (event) => {
           return networkResponse;
         })
         .catch(() => {
-          // Network failed, nothing to do since cachedResponse will be returned
-        });
+          return caches.match(event.request);
+        })
+    );
+    return;
+  }
 
-      return cachedResponse || fetchPromise;
+  // Cache-first for images, icons and other static assets
+  event.respondWith(
+    caches.match(event.request).then((cachedResponse) => {
+      if (cachedResponse) return cachedResponse;
+      return fetch(event.request).then((networkResponse) => {
+        if (networkResponse && networkResponse.status === 200 && event.request.method === 'GET') {
+          const responseToCache = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseToCache);
+          });
+        }
+        return networkResponse;
+      });
     })
   );
 });

@@ -1128,6 +1128,7 @@ function initPWA() {
                 .register("./sw.js")
                 .then((registration) => {
                     console.log("[AttendWise PWA] ServiceWorker registered with scope:", registration.scope);
+                    registration.update();
                 })
                 .catch((err) => {
                     console.warn("[AttendWise PWA] ServiceWorker registration failed:", err);
@@ -1267,11 +1268,15 @@ function initEzygoSync() {
         });
     }
 
-    function setStatus(msg, type = "loading") {
+    function setStatus(msg, type = "loading", isHtml = false) {
         if (!statusBox || !statusText) return;
         statusBox.className = "ezygo-status-box " + type;
         statusBox.classList.remove("hidden");
-        statusText.textContent = msg;
+        if (isHtml) {
+            statusText.innerHTML = msg;
+        } else {
+            statusText.textContent = msg;
+        }
         if (spinner) {
             if (type === "loading") {
                 spinner.classList.remove("hidden");
@@ -1342,6 +1347,7 @@ function initEzygoSync() {
 
                 const token = loginData.access_token;
                 const ezyUser = loginData.user || {};
+                console.log("[EzyGo] Authenticated user:", ezyUser);
 
                 // 2. Fetch enrolled courses
                 setStatus("Fetching enrolled subjects from EzyGo...", "loading");
@@ -1362,7 +1368,7 @@ function initEzygoSync() {
                         }
                     }
                 } catch (err) {
-                    console.warn("[EzyGo] /institutionuser/courses/withusers fetch notice:", err);
+                    console.warn("[EzyGo] /institutionuser/courses/withusers notice:", err);
                 }
 
                 if (!Array.isArray(coursesData) || coursesData.length === 0) {
@@ -1400,6 +1406,7 @@ function initEzygoSync() {
                         if (detailedReportData && detailedReportData.studentAttendanceData) {
                             const sData = detailedReportData.studentAttendanceData;
                             const aTypes = detailedReportData.attendanceTypes || {};
+                            const repCourses = detailedReportData.courses || {};
 
                             for (const dateKey of Object.keys(sData)) {
                                 const daySessions = sData[dateKey];
@@ -1408,20 +1415,41 @@ function initEzygoSync() {
                                 for (const sId of Object.keys(daySessions)) {
                                     const sess = daySessions[sId];
                                     if (!sess || sess.course === undefined || sess.course === null) continue;
-                                    const cId = String(sess.course);
 
+                                    const cId = (typeof sess.course === "object" && sess.course)
+                                        ? String(sess.course.id || sess.course.course_id)
+                                        : String(sess.course);
+
+                                    let cName = "";
+                                    if (typeof sess.course === "object" && sess.course) {
+                                        cName = (sess.course.name || sess.course.code || "").trim().toLowerCase();
+                                    } else if (repCourses[cId]) {
+                                        cName = (repCourses[cId].name || repCourses[cId].code || "").trim().toLowerCase();
+                                    }
+
+                                    // Index by ID
                                     if (!detailedCourseAttendance[cId]) {
                                         detailedCourseAttendance[cId] = { attended: 0, total: 0 };
                                     }
                                     detailedCourseAttendance[cId].total++;
 
+                                    // Index by Name
+                                    if (cName) {
+                                        if (!detailedCourseAttendance[cName]) {
+                                            detailedCourseAttendance[cName] = { attended: 0, total: 0 };
+                                        }
+                                        detailedCourseAttendance[cName].total++;
+                                    }
+
                                     const attId = sess.attendance;
                                     const attMeta = aTypes[attId];
                                     // In EzyGo, positive_report_value "1" indicates Present
-                                    if (attMeta && (String(attMeta.positive_report_value) === "1" || attMeta.positive_report_value === 1)) {
+                                    const isPres = (attMeta && (String(attMeta.positive_report_value) === "1" || attMeta.positive_report_value === 1)) ||
+                                                   (!attMeta && (attId === 1 || attId === "1" || attId === "P" || attId === "present"));
+
+                                    if (isPres) {
                                         detailedCourseAttendance[cId].attended++;
-                                    } else if (!attMeta && (attId === 1 || attId === "1")) {
-                                        detailedCourseAttendance[cId].attended++;
+                                        if (cName) detailedCourseAttendance[cName].attended++;
                                     }
                                 }
                             }
@@ -1451,11 +1479,13 @@ function initEzygoSync() {
                 // 4. Process each course and sync real attendance into Supabase
                 setStatus(`Found ${coursesData.length} subjects. Syncing attendance to AttendWise...`, "loading");
                 let syncedCount = 0;
+                const syncResults = [];
 
                 for (const course of coursesData) {
                     const rawName = course.name || course.code || "Subject";
                     const subjectName = rawName.trim();
                     const courseIdStr = String(course.id);
+                    const courseNameKey = subjectName.toLowerCase();
                     let attended = 0;
                     let total = 0;
                     let extracted = false;
@@ -1463,37 +1493,53 @@ function initEzygoSync() {
                     // Strategy 1: Read from per-course summary (/attendancereports/institutionuser/courses/{id}/summery)
                     const summary = courseSummaries[course.id];
                     if (summary && typeof summary === "object") {
-                        // Check if nested combined object has the figures, otherwise root
-                        const sObj = (summary.combined && (summary.combined.totel !== undefined || summary.combined.total !== undefined))
-                            ? summary.combined
-                            : summary;
+                        // Check if data envelope exists
+                        const sObj = (summary.data && typeof summary.data === "object")
+                            ? summary.data
+                            : ((summary.combined && (summary.combined.totel !== undefined || summary.combined.total !== undefined))
+                                ? summary.combined
+                                : summary);
 
                         const rawTot = sObj.totel !== undefined ? sObj.totel : (sObj.total !== undefined ? sObj.total : sObj.conducted);
                         const rawPres = sObj.present !== undefined ? sObj.present : (sObj.attended !== undefined ? sObj.attended : sObj.classes_attended);
+                        const rawPct = sObj.persantage !== undefined ? sObj.persantage : sObj.percentage;
 
                         if (rawTot !== undefined && rawTot !== null && !isNaN(Number(rawTot))) {
-                            total = Math.max(0, parseInt(rawTot, 10));
-                            attended = Math.max(0, parseInt(rawPres, 10) || 0);
+                            const pTot = Math.max(0, parseInt(rawTot, 10));
+                            let pPres = Math.max(0, parseInt(rawPres, 10) || 0);
+
+                            // Calculate from percentage if present is missing or zero while percentage is positive
+                            if (pTot > 0 && pPres === 0 && rawPct !== undefined && Number(rawPct) > 0) {
+                                pPres = Math.round(pTot * (Number(rawPct) / 100));
+                            }
+
+                            if (pTot > 0) {
+                                total = pTot;
+                                attended = pPres;
+                                extracted = true;
+                            }
+                        }
+                    }
+
+                    // Strategy 2: Read from student detailed report session calculations (by ID or Name)
+                    if (!extracted || total === 0) {
+                        const detRec = detailedCourseAttendance[courseIdStr] || detailedCourseAttendance[courseNameKey];
+                        if (detRec && detRec.total > 0) {
+                            attended = detRec.attended;
+                            total = detRec.total;
                             extracted = true;
                         }
                     }
 
-                    // Strategy 2: Read from student detailed report session calculations
-                    if ((!extracted || total === 0) && detailedCourseAttendance[courseIdStr]) {
-                        attended = detailedCourseAttendance[courseIdStr].attended;
-                        total = detailedCourseAttendance[courseIdStr].total;
-                        extracted = true;
-                    }
-
-                    // Strategy 3: Check course root properties
+                    // Strategy 3: Check course root properties or pivot
                     if (!extracted || total === 0) {
-                        if (course.classes_attended !== undefined && course.classes_conducted !== undefined) {
-                            attended = Number(course.classes_attended) || 0;
-                            total = Number(course.classes_conducted) || 0;
-                            extracted = true;
-                        } else if (course.attended !== undefined && course.total !== undefined) {
-                            attended = Number(course.attended) || 0;
-                            total = Number(course.total) || 0;
+                        const pivot = course.pivot || {};
+                        const candAtt = course.classes_attended ?? course.attended ?? course.present ?? pivot.classes_attended ?? pivot.attended ?? pivot.present;
+                        const candTot = course.classes_conducted ?? course.total ?? course.totel ?? pivot.classes_conducted ?? pivot.total ?? pivot.totel;
+
+                        if (candTot !== undefined && Number(candTot) > 0) {
+                            total = Number(candTot);
+                            attended = Number(candAtt) || 0;
                             extracted = true;
                         }
                     }
@@ -1537,7 +1583,9 @@ function initEzygoSync() {
                     // Ensure attended doesn't exceed total
                     if (attended > total) attended = total;
 
-                    console.log(`[EzyGo Sync] Subject: "${subjectName}" -> Attended: ${attended}/${total} (${total > 0 ? Math.round((attended/total)*100) : 0}%)`);
+                    const pct = total > 0 ? Math.round((attended / total) * 100) : 0;
+                    console.log(`[EzyGo Sync] Subject: "${subjectName}" -> Attended: ${attended}/${total} (${pct}%)`);
+                    syncResults.push({ name: subjectName, attended, total, pct });
 
                     // Check existing subjects in user's AttendWise account
                     const existing = subjects.find(s => 
@@ -1569,12 +1617,25 @@ function initEzygoSync() {
 
                 // 5. Reload dashboard
                 await loadSubjects();
-                setStatus(`🎉 Successfully synced ${syncedCount} subjects from EzyGo!`, "success");
+
+                const summaryLines = syncResults.map(r => 
+                    `• <strong>${r.name}</strong>: ${r.attended}/${r.total} classes (${r.pct}%)`
+                ).join("<br>");
+
+                setStatus(
+                    `🎉 <strong>Successfully synced ${syncedCount} subjects!</strong><br><br>` +
+                    `<div style="font-size:13px; text-align:left; line-height:1.7; background:rgba(0,0,0,0.05); padding:10px 14px; border-radius:8px;">` +
+                    `${summaryLines}` +
+                    `</div>`,
+                    "success",
+                    true
+                );
+
                 passwordInput.value = "";
 
                 setTimeout(() => {
                     closeModal();
-                }, 1600);
+                }, 3500);
 
             } catch (err) {
                 console.error("EzyGo Sync Error:", err);

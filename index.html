@@ -623,6 +623,22 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
+    <script>
+        function openEzygoModal() {
+            var m = document.getElementById("ezygo-sync-modal");
+            if (m) m.classList.remove("hidden");
+            var saved = localStorage.getItem("attendwise-ezygo-username");
+            var inp = document.getElementById("ezygo-username");
+            if (saved && inp) inp.value = saved;
+            var box = document.getElementById("ezygo-status-box");
+            if (box) box.classList.add("hidden");
+        }
+        function closeEzygoModal() {
+            var m = document.getElementById("ezygo-sync-modal");
+            if (m) m.classList.add("hidden");
+        }
+    </script>
+
     <script src="script.js"></script>
 
 </body>

@@ -1238,15 +1238,6 @@ function initEzygoSync() {
         const statBox = document.getElementById("ezygo-status-box");
         const subBtn = document.getElementById("ezygo-submit-btn");
 
-        if (!currentUser) {
-            const { data: { session } } = await supabaseClient.auth.getSession();
-            if (session) {
-                currentUser = session.user;
-            } else {
-                alert("Please log in to AttendWise first to sync your EzyGo attendance.");
-                return;
-            }
-        }
         const savedUser = localStorage.getItem("attendwise-ezygo-username");
         if (savedUser && userInput) {
             userInput.value = savedUser;
@@ -1296,6 +1287,16 @@ function initEzygoSync() {
             const username = usernameInput.value.trim();
             const password = passwordInput.value;
             const minPercent = Number(minPercentInput.value) || 75;
+
+            if (!currentUser) {
+                const { data: { session } } = await supabaseClient.auth.getSession();
+                if (session) {
+                    currentUser = session.user;
+                } else {
+                    setStatus("Please log in to your AttendWise account first.", "error");
+                    return;
+                }
+            }
 
             if (!username || !password) {
                 setStatus("Please enter both username and password.", "error");

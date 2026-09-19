@@ -1349,13 +1349,69 @@ function initEzygoSync() {
                 const ezyUser = loginData.user || {};
                 console.log("[EzyGo] Authenticated user:", ezyUser);
 
-                // 2. Fetch enrolled courses
-                setStatus("Fetching enrolled subjects from EzyGo...", "loading");
                 const authHeaders = {
                     "Authorization": "Bearer " + token,
                     "Accept": "application/json"
                 };
 
+                // 2. Discover student institution enrollments and set active session context
+                setStatus("Configuring student institution session in EzyGo...", "loading");
+                let myInstitutions = [];
+                let activeInstUserId = ezyUser.institution_user_id || ezyUser.id || null;
+                let activeInstId = null;
+
+                try {
+                    const instRes = await fetch(`${EZYGO_API}/institutionusers/myinstitutions`, {
+                        headers: authHeaders
+                    });
+                    if (instRes.ok) {
+                        myInstitutions = await instRes.json();
+                        console.log("[EzyGo] My institutions list:", myInstitutions);
+                        if (Array.isArray(myInstitutions) && myInstitutions.length > 0) {
+                            activeInstUserId = myInstitutions[0].id;
+                            if (myInstitutions[0].institution) {
+                                activeInstId = myInstitutions[0].institution.id;
+                            }
+                        }
+                    }
+                } catch (err) {
+                    console.warn("[EzyGo] Could not fetch myinstitutions:", err);
+                }
+
+                // Scope backend session to student's active institute
+                if (activeInstUserId) {
+                    try {
+                        await fetch(`${EZYGO_API}/user/setting/default_institutionUser`, {
+                            method: "POST",
+                            headers: {
+                                ...authHeaders,
+                                "Content-Type": "application/json"
+                            },
+                            body: JSON.stringify({
+                                default_institutionUser: activeInstUserId
+                            })
+                        });
+                        console.log("[EzyGo] default_institutionUser set to:", activeInstUserId);
+                    } catch (err) {}
+
+                    if (activeInstId) {
+                        try {
+                            await fetch(`${EZYGO_API}/user/setting/default_institute`, {
+                                method: "POST",
+                                headers: {
+                                    ...authHeaders,
+                                    "Content-Type": "application/json"
+                                },
+                                body: JSON.stringify({
+                                    default_institute: activeInstId
+                                })
+                            });
+                        } catch (err) {}
+                    }
+                }
+
+                // 3. Fetch enrolled courses
+                setStatus("Fetching enrolled subjects from EzyGo...", "loading");
                 let coursesData = [];
                 try {
                     const resWithUsers = await fetch(`${EZYGO_API}/institutionuser/courses/withusers`, {
@@ -1384,90 +1440,134 @@ function initEzygoSync() {
 
                 console.log("[EzyGo] Enrolled courses found:", coursesData);
 
-                // 3. Fetch live attendance data using official EzyGo student endpoints
+                // 4. Fetch live attendance data using official EzyGo student endpoints
                 setStatus("Fetching live attendance records for all subjects...", "loading");
 
                 // Endpoint A: Official Student Detailed Attendance Report
                 let detailedReportData = null;
                 const detailedCourseAttendance = {};
-                try {
-                    const detRes = await fetch(`${EZYGO_API}/attendancereports/student/detailed`, {
-                        method: "POST",
-                        headers: {
-                            ...authHeaders,
-                            "Content-Type": "application/json"
-                        },
-                        body: JSON.stringify({})
-                    });
-                    if (detRes.ok) {
-                        detailedReportData = await detRes.json();
-                        console.log("[EzyGo] Student detailed report data:", detailedReportData);
 
-                        if (detailedReportData && detailedReportData.studentAttendanceData) {
-                            const sData = detailedReportData.studentAttendanceData;
-                            const aTypes = detailedReportData.attendanceTypes || {};
-                            const repCourses = detailedReportData.courses || {};
+                // Helper to parse detailed sessions
+                const parseDetailedAttendance = (repData) => {
+                    if (!repData || !repData.studentAttendanceData) return;
+                    const sData = repData.studentAttendanceData;
+                    const aTypes = repData.attendanceTypes || {};
+                    const repCourses = repData.courses || {};
 
-                            for (const dateKey of Object.keys(sData)) {
-                                const daySessions = sData[dateKey];
-                                if (!daySessions || typeof daySessions !== "object") continue;
+                    for (const dateKey of Object.keys(sData)) {
+                        const daySessions = sData[dateKey];
+                        if (!daySessions || typeof daySessions !== "object") continue;
 
-                                for (const sId of Object.keys(daySessions)) {
-                                    const sess = daySessions[sId];
-                                    if (!sess || sess.course === undefined || sess.course === null) continue;
+                        for (const sId of Object.keys(daySessions)) {
+                            const sess = daySessions[sId];
+                            if (!sess || sess.course === undefined || sess.course === null) continue;
 
-                                    const cId = (typeof sess.course === "object" && sess.course)
-                                        ? String(sess.course.id || sess.course.course_id)
-                                        : String(sess.course);
+                            const cId = (typeof sess.course === "object" && sess.course)
+                                ? String(sess.course.id || sess.course.course_id)
+                                : String(sess.course);
 
-                                    let cName = "";
-                                    if (typeof sess.course === "object" && sess.course) {
-                                        cName = (sess.course.name || sess.course.code || "").trim().toLowerCase();
-                                    } else if (repCourses[cId]) {
-                                        cName = (repCourses[cId].name || repCourses[cId].code || "").trim().toLowerCase();
-                                    }
+                            let cName = "";
+                            if (typeof sess.course === "object" && sess.course) {
+                                cName = (sess.course.name || sess.course.code || "").trim().toLowerCase();
+                            } else if (repCourses[cId]) {
+                                cName = (repCourses[cId].name || repCourses[cId].code || "").trim().toLowerCase();
+                            }
 
-                                    // Index by ID
-                                    if (!detailedCourseAttendance[cId]) {
-                                        detailedCourseAttendance[cId] = { attended: 0, total: 0 };
-                                    }
-                                    detailedCourseAttendance[cId].total++;
+                            if (!detailedCourseAttendance[cId]) {
+                                detailedCourseAttendance[cId] = { attended: 0, total: 0 };
+                            }
+                            detailedCourseAttendance[cId].total++;
 
-                                    // Index by Name
-                                    if (cName) {
-                                        if (!detailedCourseAttendance[cName]) {
-                                            detailedCourseAttendance[cName] = { attended: 0, total: 0 };
-                                        }
-                                        detailedCourseAttendance[cName].total++;
-                                    }
-
-                                    const attId = sess.attendance;
-                                    const attMeta = aTypes[attId];
-                                    // In EzyGo, positive_report_value "1" indicates Present
-                                    const isPres = (attMeta && (String(attMeta.positive_report_value) === "1" || attMeta.positive_report_value === 1)) ||
-                                                   (!attMeta && (attId === 1 || attId === "1" || attId === "P" || attId === "present"));
-
-                                    if (isPres) {
-                                        detailedCourseAttendance[cId].attended++;
-                                        if (cName) detailedCourseAttendance[cName].attended++;
-                                    }
+                            if (cName) {
+                                if (!detailedCourseAttendance[cName]) {
+                                    detailedCourseAttendance[cName] = { attended: 0, total: 0 };
                                 }
+                                detailedCourseAttendance[cName].total++;
+                            }
+
+                            const attId = sess.attendance;
+                            const attMeta = aTypes[attId];
+                            const isPres = (attMeta && (String(attMeta.positive_report_value) === "1" || attMeta.positive_report_value === 1)) ||
+                                           (!attMeta && (attId === 1 || attId === "1" || attId === "P" || attId === "present"));
+
+                            if (isPres) {
+                                detailedCourseAttendance[cId].attended++;
+                                if (cName) detailedCourseAttendance[cName].attended++;
+                            }
+                        }
+                    }
+                };
+
+                // Try POST with student institution user id and academic details
+                try {
+                    const postPayloads = [
+                        {
+                            institution_user_id: activeInstUserId,
+                            academic_year: myInstitutions[0]?.academic_year,
+                            academic_semester: myInstitutions[0]?.academic_semester
+                        },
+                        { institution_user_id: activeInstUserId },
+                        {}
+                    ];
+
+                    for (const payload of postPayloads) {
+                        const detRes = await fetch(`${EZYGO_API}/attendancereports/student/detailed`, {
+                            method: "POST",
+                            headers: {
+                                ...authHeaders,
+                                "Content-Type": "application/json"
+                            },
+                            body: JSON.stringify(payload)
+                        });
+                        if (detRes.ok) {
+                            const json = await detRes.json();
+                            if (json && json.studentAttendanceData && Object.keys(json.studentAttendanceData).length > 0) {
+                                detailedReportData = json;
+                                parseDetailedAttendance(detailedReportData);
+                                console.log("[EzyGo] Detailed report loaded via payload:", payload, detailedReportData);
+                                break;
                             }
                         }
                     }
                 } catch (err) {
-                    console.warn("[EzyGo] Could not fetch student detailed report:", err);
+                    console.warn("[EzyGo] Error querying detailed attendance report:", err);
+                }
+
+                // If detailedCourseAttendance still empty, try GET /attendancereports/student/detailed
+                if (Object.keys(detailedCourseAttendance).length === 0) {
+                    try {
+                        const getRes = await fetch(`${EZYGO_API}/attendancereports/student/detailed`, {
+                            headers: authHeaders
+                        });
+                        if (getRes.ok) {
+                            const json = await getRes.json();
+                            parseDetailedAttendance(json);
+                        }
+                    } catch (err) {}
                 }
 
                 // Endpoint B: Per-Course Official Attendance Summary (/attendancereports/institutionuser/courses/{id}/summery)
                 const courseSummaries = {};
                 await Promise.all(coursesData.map(async (course) => {
                     try {
-                        const sumRes = await fetch(`${EZYGO_API}/attendancereports/institutionuser/courses/${course.id}/summery`, {
+                        let sumRes = await fetch(`${EZYGO_API}/attendancereports/institutionuser/courses/${course.id}/summery`, {
                             headers: authHeaders
                         });
-                        if (sumRes.ok) {
-                            const sumJson = await sumRes.json();
+                        let sumJson = sumRes.ok ? await sumRes.json() : null;
+
+                        // Try with explicit institution_user_id parameter if response was empty or error
+                        if (!sumJson || (typeof sumJson === "object" && Object.keys(sumJson).length === 0 && activeInstUserId)) {
+                            try {
+                                const sumRes2 = await fetch(`${EZYGO_API}/attendancereports/institutionuser/courses/${course.id}/summery?institution_user_id=${activeInstUserId}`, {
+                                    headers: authHeaders
+                                });
+                                if (sumRes2.ok) {
+                                    sumJson = await sumRes2.json();
+                                }
+                            } catch (e) {}
+                        }
+
+                        if (sumJson) {
                             console.log(`[EzyGo] Course ${course.id} (${course.name || course.code}) summary:`, sumJson);
                             courseSummaries[course.id] = sumJson;
                         }
@@ -1623,19 +1723,16 @@ function initEzygoSync() {
                 ).join("<br>");
 
                 setStatus(
-                    `🎉 <strong>Successfully synced ${syncedCount} subjects!</strong><br><br>` +
-                    `<div style="font-size:13px; text-align:left; line-height:1.7; background:rgba(0,0,0,0.05); padding:10px 14px; border-radius:8px;">` +
+                    `🎉 <strong>Synced ${syncedCount} subjects from EzyGo!</strong><br><br>` +
+                    `<div style="font-size:13px; text-align:left; line-height:1.7; background:rgba(0,0,0,0.05); padding:10px 14px; border-radius:8px; max-height:160px; overflow-y:auto;">` +
                     `${summaryLines}` +
-                    `</div>`,
+                    `</div>` +
+                    `<button type="button" onclick="closeEzygoModal()" style="margin-top:12px; width:100%; padding:10px; background:#2563eb; color:#fff; border:none; border-radius:50px; font-weight:700; cursor:pointer;">✓ Done & View Dashboard</button>`,
                     "success",
                     true
                 );
 
                 passwordInput.value = "";
-
-                setTimeout(() => {
-                    closeModal();
-                }, 3500);
 
             } catch (err) {
                 console.error("EzyGo Sync Error:", err);

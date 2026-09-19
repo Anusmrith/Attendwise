@@ -1213,5 +1213,239 @@ function initPWA() {
     });
 }
 
-// Initialize PWA features immediately
+// ==========================================
+// EZYGO COLLEGE PORTAL INTEGRATION
+// ==========================================
+
+function initEzygoSync() {
+    const modal = document.getElementById("ezygo-sync-modal");
+    const navBtn = document.getElementById("ezygo-nav-sync-btn");
+    const sectionBtn = document.getElementById("ezygo-section-sync-btn");
+    const closeBtn = document.getElementById("ezygo-modal-close");
+    const form = document.getElementById("ezygo-sync-form");
+    const usernameInput = document.getElementById("ezygo-username");
+    const passwordInput = document.getElementById("ezygo-password");
+    const minPercentInput = document.getElementById("ezygo-min-percent");
+    const rememberCheckbox = document.getElementById("ezygo-remember-user");
+    const statusBox = document.getElementById("ezygo-status-box");
+    const spinner = document.getElementById("ezygo-spinner");
+    const statusText = document.getElementById("ezygo-status-text");
+    const submitBtn = document.getElementById("ezygo-submit-btn");
+
+    function openModal() {
+        if (!currentUser) {
+            alert("Please log in to AttendWise first to sync your EzyGo attendance.");
+            return;
+        }
+        const savedUser = localStorage.getItem("attendwise-ezygo-username");
+        if (savedUser && usernameInput) {
+            usernameInput.value = savedUser;
+        }
+        if (statusBox) statusBox.classList.add("hidden");
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = "<span>⚡ Fetch & Import Attendance</span>";
+        }
+        if (modal) modal.classList.remove("hidden");
+    }
+
+    function closeModal() {
+        if (modal) modal.classList.add("hidden");
+    }
+
+    if (navBtn) navBtn.addEventListener("click", openModal);
+    if (sectionBtn) sectionBtn.addEventListener("click", openModal);
+    if (closeBtn) closeBtn.addEventListener("click", closeModal);
+    if (modal) {
+        modal.addEventListener("click", (e) => {
+            if (e.target === modal) closeModal();
+        });
+    }
+
+    function setStatus(msg, type = "loading") {
+        if (!statusBox || !statusText) return;
+        statusBox.className = "ezygo-status-box " + type;
+        statusBox.classList.remove("hidden");
+        statusText.textContent = msg;
+        if (spinner) {
+            if (type === "loading") {
+                spinner.classList.remove("hidden");
+            } else {
+                spinner.classList.add("hidden");
+            }
+        }
+    }
+
+    if (form) {
+        form.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const username = usernameInput.value.trim();
+            const password = passwordInput.value;
+            const minPercent = Number(minPercentInput.value) || 75;
+
+            if (!username || !password) {
+                setStatus("Please enter both username and password.", "error");
+                return;
+            }
+
+            if (rememberCheckbox && rememberCheckbox.checked) {
+                localStorage.setItem("attendwise-ezygo-username", username);
+            } else {
+                localStorage.removeItem("attendwise-ezygo-username");
+            }
+
+            submitBtn.disabled = true;
+
+            try {
+                const EZYGO_API = "https://production.api.ezygo.app/api/v1/Xcr45_salt";
+
+                // 1. Authenticate with EzyGo
+                setStatus("Connecting and verifying credentials with EzyGo...", "loading");
+                const loginRes = await fetch(`${EZYGO_API}/login`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Accept": "application/json"
+                    },
+                    body: JSON.stringify({
+                        username: username,
+                        password: password,
+                        stay_logged_in: false
+                    })
+                });
+
+                const loginData = await loginRes.json();
+                if (!loginRes.ok || !loginData.access_token) {
+                    let errMsg = "Invalid EzyGo username or password.";
+                    if (loginData.message) errMsg = loginData.message;
+                    else if (loginData.errors && typeof loginData.errors === "object") {
+                        const firstErr = Object.values(loginData.errors)[0];
+                        if (Array.isArray(firstErr)) errMsg = firstErr[0];
+                    }
+                    throw new Error(errMsg);
+                }
+
+                const token = loginData.access_token;
+                const ezyUser = loginData.user || {};
+
+                // 2. Fetch enrolled courses
+                setStatus("Fetching enrolled subjects...", "loading");
+                const authHeaders = {
+                    "Authorization": "Bearer " + token,
+                    "Accept": "application/json"
+                };
+
+                const coursesRes = await fetch(`${EZYGO_API}/institutionuser/courses`, {
+                    headers: authHeaders
+                });
+                const coursesData = await coursesRes.json();
+
+                if (!Array.isArray(coursesData) || coursesData.length === 0) {
+                    throw new Error("No enrolled courses found for this student account in EzyGo.");
+                }
+
+                // 3. Fetch attendance records
+                setStatus("Calculating live attendance records...", "loading");
+                let attendanceDates = [];
+                try {
+                    const attRes = await fetch(`${EZYGO_API}/attendancedates/withcounts`, {
+                        headers: authHeaders
+                    });
+                    if (attRes.ok) {
+                        attendanceDates = await attRes.json();
+                    }
+                } catch (err) {
+                    console.warn("Could not fetch global attendance dates:", err);
+                }
+
+                // 4. Process each course and sync into Supabase
+                setStatus(`Found ${coursesData.length} subjects. Saving to AttendWise...`, "loading");
+                let syncedCount = 0;
+
+                for (const course of coursesData) {
+                    const rawName = course.name || course.code || "Subject";
+                    const subjectName = rawName.trim();
+                    let attended = 0;
+                    let total = 0;
+
+                    // Read attended & total from course object or session records
+                    if (course.attended !== undefined && course.total !== undefined) {
+                        attended = Number(course.attended) || 0;
+                        total = Number(course.total) || 0;
+                    } else if (course.classes_attended !== undefined && course.classes_conducted !== undefined) {
+                        attended = Number(course.classes_attended) || 0;
+                        total = Number(course.classes_conducted) || 0;
+                    } else if (Array.isArray(attendanceDates) && attendanceDates.length > 0) {
+                        const courseSessions = attendanceDates.filter(s => s.course_id === course.id);
+                        total = courseSessions.length;
+                        courseSessions.forEach(session => {
+                            if (Array.isArray(session.attendances)) {
+                                const myRecord = session.attendances.find(a => 
+                                    a.institution_user_id === ezyUser.id || 
+                                    a.user_id === ezyUser.id || 
+                                    a.student_id === ezyUser.id
+                                );
+                                if (myRecord) {
+                                    // 1 is Present, 2 is Absent in EzyGo
+                                    if (myRecord.attendance_type_id === 1 || myRecord.is_present || myRecord.status === "present") {
+                                        attended++;
+                                    }
+                                } else {
+                                    attended++;
+                                }
+                            } else {
+                                attended++;
+                            }
+                        });
+                    }
+
+                    // Check existing subjects in user's AttendWise account
+                    const existing = subjects.find(s => 
+                        s.subject_name.trim().toLowerCase() === subjectName.toLowerCase()
+                    );
+
+                    if (existing) {
+                        await supabaseClient
+                            .from("subjects")
+                            .update({
+                                attended: attended,
+                                total: total,
+                                minimum_percentage: minPercent
+                            })
+                            .eq("id", existing.id);
+                    } else {
+                        await supabaseClient
+                            .from("subjects")
+                            .insert({
+                                user_id: currentUser.id,
+                                subject_name: subjectName,
+                                attended: attended,
+                                total: total,
+                                minimum_percentage: minPercent
+                            });
+                    }
+                    syncedCount++;
+                }
+
+                // 5. Reload dashboard
+                await loadSubjects();
+                setStatus(`🎉 Successfully synced ${syncedCount} subjects from EzyGo!`, "success");
+                passwordInput.value = "";
+
+                setTimeout(() => {
+                    closeModal();
+                }, 1600);
+
+            } catch (err) {
+                console.error("EzyGo Sync Error:", err);
+                setStatus("Error: " + (err.message || "Could not connect to EzyGo. Please check your credentials."), "error");
+            } finally {
+                submitBtn.disabled = false;
+            }
+        });
+    }
+}
+
+// Initialize features immediately
 initPWA();
+initEzygoSync();

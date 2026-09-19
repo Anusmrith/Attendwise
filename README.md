@@ -18,6 +18,7 @@ Available as a **responsive web app**, **Progressive Web App (PWA)**, and **nati
 * 🛌 **Bunk Margin / Safety Margin**: Calculates how many upcoming classes you can safely miss without dropping below the requirement.
 * 📱 **PWA & Offline Ready**: Service worker caching for fast loading and offline reliability; installable directly from the browser on Android, iOS, and desktop.
 * 📲 **Native Mobile Support**: Built-in Capacitor project configurations for native Android (`.apk` / `.aab`) and iOS builds.
+* ⚡ **EzyGo Portal Sync**: 1-click live synchronization with your college attendance portal (`edu.ezygo.app`) to auto-import subjects and attendance without manual typing.
 * 🎨 **Modern Responsive UI**: Clean interface optimized for all screen sizes, including notch and safe-area insets.
 * 🗑️ **Subject Management**: Easily add, update, and remove subject records.
 

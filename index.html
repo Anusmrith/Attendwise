@@ -233,6 +233,15 @@
             <div class="nav-right">
 
                 <button
+                    id="ezygo-nav-sync-btn"
+                    class="ezygo-pill-btn"
+                    title="Sync with EzyGo"
+                >
+                    <span class="btn-icon">⚡</span>
+                    <span>Sync EzyGo</span>
+                </button>
+
+                <button
                     id="pwa-nav-install-btn"
                     class="install-pill-btn hidden"
                     title="Install Mobile App"
@@ -348,6 +357,15 @@
                         <h2>Your Subjects</h2>
 
                     </div>
+
+                    <button
+                        id="ezygo-section-sync-btn"
+                        class="ezygo-quick-btn"
+                        title="Sync directly from EzyGo college portal"
+                    >
+                        <span class="btn-icon">⚡</span>
+                        <span>Sync from EzyGo</span>
+                    </button>
 
                 </div>
 
@@ -533,6 +551,67 @@
             </div>
             <div class="modal-footer">
                 <button id="ios-modal-ok" class="primary-button">Got it!</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- EZYGO SYNC MODAL -->
+    <div id="ezygo-sync-modal" class="modal-overlay hidden">
+        <div class="modal-card ezygo-modal-card">
+            <div class="modal-header">
+                <div>
+                    <span class="ezygo-tag">COLLEGE PORTAL</span>
+                    <h3>Sync with EzyGo</h3>
+                </div>
+                <button id="ezygo-modal-close" class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p class="ezygo-intro">Import your subjects and live attendance directly from <code>edu.ezygo.app</code>.</p>
+                <form id="ezygo-sync-form">
+                    <div class="input-group">
+                        <label for="ezygo-username">EzyGo Username / Email / Roll No</label>
+                        <input
+                            type="text"
+                            id="ezygo-username"
+                            placeholder="e.g. your college username"
+                            required
+                            autocomplete="username"
+                        >
+                    </div>
+                    <div class="input-group">
+                        <label for="ezygo-password">EzyGo Password</label>
+                        <input
+                            type="password"
+                            id="ezygo-password"
+                            placeholder="Enter your EzyGo password"
+                            required
+                            autocomplete="current-password"
+                        >
+                    </div>
+                    <div class="input-group">
+                        <label for="ezygo-min-percent">Target Minimum Attendance %</label>
+                        <input
+                            type="number"
+                            id="ezygo-min-percent"
+                            min="1"
+                            max="100"
+                            value="75"
+                            required
+                        >
+                    </div>
+                    <div class="ezygo-remember-row">
+                        <input type="checkbox" id="ezygo-remember-user" checked>
+                        <label for="ezygo-remember-user">Remember username on this device</label>
+                    </div>
+                    <div id="ezygo-status-box" class="ezygo-status-box hidden">
+                        <div id="ezygo-spinner" class="ezygo-spinner hidden"></div>
+                        <p id="ezygo-status-text">Connecting...</p>
+                    </div>
+                    <button type="submit" id="ezygo-submit-btn" class="primary-button ezygo-submit-btn">
+                        <span>⚡ Fetch & Import Attendance</span>
+                    </button>
+                </form>
+                <p class="ezygo-security-note">🔒 Your password is sent directly to EzyGo's official API to fetch your data and is never saved or stored anywhere.</p>
             </div>
         </div>
     </div>

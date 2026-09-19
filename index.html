@@ -7,10 +7,21 @@
 
     <meta
         name="viewport"
-        content="width=device-width, initial-scale=1.0"
+        content="width=device-width, initial-scale=1.0, viewport-fit=cover"
     >
 
-    <title>AttendWise</title>
+    <title>AttendWise - Student Attendance Manager</title>
+
+    <!-- PWA & Mobile Meta Tags -->
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="icon" type="image/png" href="icons/favicon.png">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+    <meta name="theme-color" content="#4f46e5">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="AttendWise">
+    <meta name="description" content="Smart attendance management for students. Track attendance percentages, required classes, and safe bunks.">
 
     <link rel="stylesheet" href="style.css">
 
@@ -220,6 +231,15 @@
 
 
             <div class="nav-right">
+
+                <button
+                    id="pwa-nav-install-btn"
+                    class="install-pill-btn hidden"
+                    title="Install Mobile App"
+                >
+                    <span class="btn-icon">📲</span>
+                    <span>Install App</span>
+                </button>
 
                 <span id="user-email"></span>
 
@@ -469,6 +489,52 @@
 
         </footer>
 
+    </div>
+
+
+    <!-- PWA INSTALL BANNER -->
+    <div id="pwa-install-banner" class="pwa-install-banner hidden">
+        <div class="pwa-banner-content">
+            <img src="icons/icon-192.png" alt="AttendWise" class="pwa-banner-icon">
+            <div class="pwa-banner-text">
+                <span class="pwa-banner-title">Get AttendWise App</span>
+                <span class="pwa-banner-desc">Download to your device for instant offline access</span>
+            </div>
+        </div>
+        <div class="pwa-banner-actions">
+            <button id="pwa-banner-install-btn" class="pwa-action-btn primary">Install</button>
+            <button id="pwa-banner-dismiss-btn" class="pwa-action-btn dismiss" aria-label="Dismiss">✕</button>
+        </div>
+    </div>
+
+    <!-- IOS INSTALL INSTRUCTIONS MODAL -->
+    <div id="ios-install-modal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3>Install on iPhone / iPad</h3>
+                <button id="ios-modal-close" class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>Add AttendWise to your iOS home screen as a standalone application:</p>
+                <ol class="ios-steps">
+                    <li>
+                        <span class="step-num">1</span>
+                        <span>Tap the <strong>Share</strong> icon (square with arrow pointing up) at the bottom toolbar of Safari.</span>
+                    </li>
+                    <li>
+                        <span class="step-num">2</span>
+                        <span>Scroll down the action sheet and select <strong>"Add to Home Screen"</strong>.</span>
+                    </li>
+                    <li>
+                        <span class="step-num">3</span>
+                        <span>Tap <strong>Add</strong> in the top-right corner. AttendWise will appear on your home screen!</span>
+                    </li>
+                </ol>
+            </div>
+            <div class="modal-footer">
+                <button id="ios-modal-ok" class="primary-button">Got it!</button>
+            </div>
+        </div>
     </div>
 
 

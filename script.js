@@ -1105,3 +1105,106 @@ function escapeHTML(value) {
             "&#039;"
         );
 }
+
+
+// ==========================================
+// PWA & MOBILE APP INSTALLATION
+// ==========================================
+
+let deferredInstallPrompt = null;
+
+function initPWA() {
+    // 1. Register Service Worker
+    if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+            navigator.serviceWorker
+                .register("./sw.js")
+                .then((registration) => {
+                    console.log("[AttendWise PWA] ServiceWorker registered with scope:", registration.scope);
+                })
+                .catch((err) => {
+                    console.warn("[AttendWise PWA] ServiceWorker registration failed:", err);
+                });
+        });
+    }
+
+    const navInstallBtn = document.getElementById("pwa-nav-install-btn");
+    const banner = document.getElementById("pwa-install-banner");
+    const bannerInstallBtn = document.getElementById("pwa-banner-install-btn");
+    const bannerDismissBtn = document.getElementById("pwa-banner-dismiss-btn");
+    const iosModal = document.getElementById("ios-install-modal");
+    const iosCloseBtn = document.getElementById("ios-modal-close");
+    const iosOkBtn = document.getElementById("ios-modal-ok");
+
+    const isIOS = /iphone|ipad|ipod/.test(navigator.userAgent.toLowerCase());
+    const isStandalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone;
+
+    // Listen for Android/Desktop install prompt
+    window.addEventListener("beforeinstallprompt", (e) => {
+        e.preventDefault();
+        deferredInstallPrompt = e;
+
+        if (navInstallBtn) navInstallBtn.classList.remove("hidden");
+        if (banner && !sessionStorage.getItem("attendwise-install-dismissed")) {
+            banner.classList.remove("hidden");
+        }
+    });
+
+    // Check if on iOS Safari (outside standalone mode)
+    if (isIOS && !isStandalone) {
+        if (navInstallBtn) navInstallBtn.classList.remove("hidden");
+        if (banner && !sessionStorage.getItem("attendwise-install-dismissed")) {
+            banner.classList.remove("hidden");
+        }
+    }
+
+    async function triggerInstall() {
+        if (deferredInstallPrompt) {
+            deferredInstallPrompt.prompt();
+            const { outcome } = await deferredInstallPrompt.userChoice;
+            console.log("[AttendWise PWA] User install choice:", outcome);
+            deferredInstallPrompt = null;
+            if (banner) banner.classList.add("hidden");
+            if (navInstallBtn) navInstallBtn.classList.add("hidden");
+        } else if (isIOS && !isStandalone) {
+            if (iosModal) iosModal.classList.remove("hidden");
+        } else {
+            alert("To install AttendWise, tap your browser's menu (e.g. ⋮ or Share) and select 'Install app' or 'Add to Home screen'.");
+        }
+    }
+
+    if (navInstallBtn) {
+        navInstallBtn.addEventListener("click", triggerInstall);
+    }
+    if (bannerInstallBtn) {
+        bannerInstallBtn.addEventListener("click", triggerInstall);
+    }
+    if (bannerDismissBtn) {
+        bannerDismissBtn.addEventListener("click", () => {
+            if (banner) banner.classList.add("hidden");
+            sessionStorage.setItem("attendwise-install-dismissed", "true");
+        });
+    }
+
+    function closeIosModal() {
+        if (iosModal) iosModal.classList.add("hidden");
+    }
+
+    if (iosCloseBtn) iosCloseBtn.addEventListener("click", closeIosModal);
+    if (iosOkBtn) iosOkBtn.addEventListener("click", closeIosModal);
+    if (iosModal) {
+        iosModal.addEventListener("click", (e) => {
+            if (e.target === iosModal) closeIosModal();
+        });
+    }
+
+    window.addEventListener("appinstalled", () => {
+        console.log("[AttendWise PWA] Installed successfully!");
+        if (banner) banner.classList.add("hidden");
+        if (navInstallBtn) navInstallBtn.classList.add("hidden");
+        deferredInstallPrompt = null;
+    });
+}
+
+// Initialize PWA features immediately
+initPWA();

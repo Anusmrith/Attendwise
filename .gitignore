@@ -1,0 +1,24 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Build outputs
+www/
+dist/
+
+# Android build outputs
+android/app/build/
+android/.gradle/
+android/build/
+android/captures/
+android/.idea/
+
+# iOS build outputs
+ios/App/Pods/
+ios/App/build/
+ios/App/.build/
+ios/App/DerivedData/
+
+# OS files
+.DS_Store
+Thumbs.db

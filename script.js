@@ -193,52 +193,55 @@ async function handleSignup(event) {
         "Creating your account...";
 
 
-    const {
-        data,
-        error
-    } = await supabaseClient
-        .auth
-        .signUp({
+    try {
+        const {
+            data,
+            error
+        } = await supabaseClient
+            .auth
+            .signUp({
 
-            email: email,
+                email: email,
 
-            password: password,
+                password: password,
 
-            options: {
+                options: {
 
-                data: {
-                    name: name
+                    data: {
+                        name: name
+                    }
+
                 }
 
+            });
+
+
+        if (error) {
+            console.error("Signup error:", error);
+            if (error.message && (error.message.toLowerCase().includes("fetch") || error.message.toLowerCase().includes("rate limit"))) {
+                message.textContent = "Rate limit or network error. In Supabase Dashboard -> Authentication -> Providers -> Email, turn OFF 'Confirm email'.";
+            } else {
+                message.textContent = error.message;
             }
-
-        });
-
-
-    if (error) {
-
-        message.textContent =
-            error.message;
-
-        return;
-    }
+            return;
+        }
 
 
-    // Depending on your Supabase
-    // email-confirmation setting,
-    // the user may need to confirm
-    // their email first.
-
-    if (data.session) {
-
-        message.textContent =
-            "Account created successfully!";
-
-    } else {
-
-        message.textContent =
-            "Account created. Check your email to confirm your account.";
-
+        // If email confirmation is disabled in Supabase, session is returned immediately
+        if (data.session) {
+            currentUser = data.user;
+            message.textContent = "Account created! Redirecting to your dashboard...";
+            setTimeout(() => {
+                showDashboard();
+            }, 600);
+        } else if (data.user && (!data.user.identities || data.user.identities.length === 0)) {
+            message.textContent = "An account with this email already exists. Please log in.";
+        } else {
+            message.textContent = "Account created! Please check your email to confirm or try logging in.";
+        }
+    } catch (err) {
+        console.error("Signup exception:", err);
+        message.textContent = "Connection error. In Supabase Dashboard -> Authentication -> Providers -> Email, disable 'Confirm email'.";
     }
 }
 
@@ -283,33 +286,37 @@ async function handleLogin(event) {
         "Logging in...";
 
 
-    const {
-        data,
-        error
-    } = await supabaseClient
-        .auth
-        .signInWithPassword({
+    try {
+        const {
+            data,
+            error
+        } = await supabaseClient
+            .auth
+            .signInWithPassword({
 
-            email: email,
+                email: email,
 
-            password: password
+                password: password
 
-        });
+            });
 
 
-    if (error) {
+        if (error) {
+            console.error("Login error:", error);
+            message.textContent =
+                error.message;
+            return;
+        }
 
-        message.textContent =
-            error.message;
 
-        return;
+        currentUser =
+            data.user;
+
+        showDashboard();
+    } catch (err) {
+        console.error("Login exception:", err);
+        message.textContent = "Login error: " + (err.message || "Failed to connect");
     }
-
-
-    currentUser =
-        data.user;
-
-    showDashboard();
 }
 
 

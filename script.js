@@ -1344,75 +1344,200 @@ function initEzygoSync() {
                 const ezyUser = loginData.user || {};
 
                 // 2. Fetch enrolled courses
-                setStatus("Fetching enrolled subjects...", "loading");
+                setStatus("Fetching enrolled subjects from EzyGo...", "loading");
                 const authHeaders = {
                     "Authorization": "Bearer " + token,
                     "Accept": "application/json"
                 };
 
-                const coursesRes = await fetch(`${EZYGO_API}/institutionuser/courses`, {
-                    headers: authHeaders
-                });
-                const coursesData = await coursesRes.json();
+                let coursesData = [];
+                try {
+                    const resWithUsers = await fetch(`${EZYGO_API}/institutionuser/courses/withusers`, {
+                        headers: authHeaders
+                    });
+                    if (resWithUsers.ok) {
+                        const json = await resWithUsers.json();
+                        if (Array.isArray(json) && json.length > 0) {
+                            coursesData = json;
+                        }
+                    }
+                } catch (err) {
+                    console.warn("[EzyGo] /institutionuser/courses/withusers fetch notice:", err);
+                }
+
+                if (!Array.isArray(coursesData) || coursesData.length === 0) {
+                    const coursesRes = await fetch(`${EZYGO_API}/institutionuser/courses`, {
+                        headers: authHeaders
+                    });
+                    coursesData = await coursesRes.json();
+                }
 
                 if (!Array.isArray(coursesData) || coursesData.length === 0) {
                     throw new Error("No enrolled courses found for this student account in EzyGo.");
                 }
 
-                // 3. Fetch attendance records
-                setStatus("Calculating live attendance records...", "loading");
-                let attendanceDates = [];
+                console.log("[EzyGo] Enrolled courses found:", coursesData);
+
+                // 3. Fetch live attendance data using official EzyGo student endpoints
+                setStatus("Fetching live attendance records for all subjects...", "loading");
+
+                // Endpoint A: Official Student Detailed Attendance Report
+                let detailedReportData = null;
+                const detailedCourseAttendance = {};
                 try {
-                    const attRes = await fetch(`${EZYGO_API}/attendancedates/withcounts`, {
-                        headers: authHeaders
+                    const detRes = await fetch(`${EZYGO_API}/attendancereports/student/detailed`, {
+                        method: "POST",
+                        headers: {
+                            ...authHeaders,
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify({})
                     });
-                    if (attRes.ok) {
-                        attendanceDates = await attRes.json();
+                    if (detRes.ok) {
+                        detailedReportData = await detRes.json();
+                        console.log("[EzyGo] Student detailed report data:", detailedReportData);
+
+                        if (detailedReportData && detailedReportData.studentAttendanceData) {
+                            const sData = detailedReportData.studentAttendanceData;
+                            const aTypes = detailedReportData.attendanceTypes || {};
+
+                            for (const dateKey of Object.keys(sData)) {
+                                const daySessions = sData[dateKey];
+                                if (!daySessions || typeof daySessions !== "object") continue;
+
+                                for (const sId of Object.keys(daySessions)) {
+                                    const sess = daySessions[sId];
+                                    if (!sess || sess.course === undefined || sess.course === null) continue;
+                                    const cId = String(sess.course);
+
+                                    if (!detailedCourseAttendance[cId]) {
+                                        detailedCourseAttendance[cId] = { attended: 0, total: 0 };
+                                    }
+                                    detailedCourseAttendance[cId].total++;
+
+                                    const attId = sess.attendance;
+                                    const attMeta = aTypes[attId];
+                                    // In EzyGo, positive_report_value "1" indicates Present
+                                    if (attMeta && (String(attMeta.positive_report_value) === "1" || attMeta.positive_report_value === 1)) {
+                                        detailedCourseAttendance[cId].attended++;
+                                    } else if (!attMeta && (attId === 1 || attId === "1")) {
+                                        detailedCourseAttendance[cId].attended++;
+                                    }
+                                }
+                            }
+                        }
                     }
                 } catch (err) {
-                    console.warn("Could not fetch global attendance dates:", err);
+                    console.warn("[EzyGo] Could not fetch student detailed report:", err);
                 }
 
-                // 4. Process each course and sync into Supabase
-                setStatus(`Found ${coursesData.length} subjects. Saving to AttendWise...`, "loading");
+                // Endpoint B: Per-Course Official Attendance Summary (/attendancereports/institutionuser/courses/{id}/summery)
+                const courseSummaries = {};
+                await Promise.all(coursesData.map(async (course) => {
+                    try {
+                        const sumRes = await fetch(`${EZYGO_API}/attendancereports/institutionuser/courses/${course.id}/summery`, {
+                            headers: authHeaders
+                        });
+                        if (sumRes.ok) {
+                            const sumJson = await sumRes.json();
+                            console.log(`[EzyGo] Course ${course.id} (${course.name || course.code}) summary:`, sumJson);
+                            courseSummaries[course.id] = sumJson;
+                        }
+                    } catch (err) {
+                        console.warn(`[EzyGo] Summary fetch failed for course ${course.id}:`, err);
+                    }
+                }));
+
+                // 4. Process each course and sync real attendance into Supabase
+                setStatus(`Found ${coursesData.length} subjects. Syncing attendance to AttendWise...`, "loading");
                 let syncedCount = 0;
 
                 for (const course of coursesData) {
                     const rawName = course.name || course.code || "Subject";
                     const subjectName = rawName.trim();
+                    const courseIdStr = String(course.id);
                     let attended = 0;
                     let total = 0;
+                    let extracted = false;
 
-                    // Read attended & total from course object or session records
-                    if (course.attended !== undefined && course.total !== undefined) {
-                        attended = Number(course.attended) || 0;
-                        total = Number(course.total) || 0;
-                    } else if (course.classes_attended !== undefined && course.classes_conducted !== undefined) {
-                        attended = Number(course.classes_attended) || 0;
-                        total = Number(course.classes_conducted) || 0;
-                    } else if (Array.isArray(attendanceDates) && attendanceDates.length > 0) {
-                        const courseSessions = attendanceDates.filter(s => s.course_id === course.id);
-                        total = courseSessions.length;
-                        courseSessions.forEach(session => {
-                            if (Array.isArray(session.attendances)) {
-                                const myRecord = session.attendances.find(a => 
-                                    a.institution_user_id === ezyUser.id || 
-                                    a.user_id === ezyUser.id || 
-                                    a.student_id === ezyUser.id
-                                );
-                                if (myRecord) {
-                                    // 1 is Present, 2 is Absent in EzyGo
-                                    if (myRecord.attendance_type_id === 1 || myRecord.is_present || myRecord.status === "present") {
-                                        attended++;
-                                    }
-                                } else {
-                                    attended++;
-                                }
-                            } else {
-                                attended++;
-                            }
-                        });
+                    // Strategy 1: Read from per-course summary (/attendancereports/institutionuser/courses/{id}/summery)
+                    const summary = courseSummaries[course.id];
+                    if (summary && typeof summary === "object") {
+                        // Check if nested combined object has the figures, otherwise root
+                        const sObj = (summary.combined && (summary.combined.totel !== undefined || summary.combined.total !== undefined))
+                            ? summary.combined
+                            : summary;
+
+                        const rawTot = sObj.totel !== undefined ? sObj.totel : (sObj.total !== undefined ? sObj.total : sObj.conducted);
+                        const rawPres = sObj.present !== undefined ? sObj.present : (sObj.attended !== undefined ? sObj.attended : sObj.classes_attended);
+
+                        if (rawTot !== undefined && rawTot !== null && !isNaN(Number(rawTot))) {
+                            total = Math.max(0, parseInt(rawTot, 10));
+                            attended = Math.max(0, parseInt(rawPres, 10) || 0);
+                            extracted = true;
+                        }
                     }
+
+                    // Strategy 2: Read from student detailed report session calculations
+                    if ((!extracted || total === 0) && detailedCourseAttendance[courseIdStr]) {
+                        attended = detailedCourseAttendance[courseIdStr].attended;
+                        total = detailedCourseAttendance[courseIdStr].total;
+                        extracted = true;
+                    }
+
+                    // Strategy 3: Check course root properties
+                    if (!extracted || total === 0) {
+                        if (course.classes_attended !== undefined && course.classes_conducted !== undefined) {
+                            attended = Number(course.classes_attended) || 0;
+                            total = Number(course.classes_conducted) || 0;
+                            extracted = true;
+                        } else if (course.attended !== undefined && course.total !== undefined) {
+                            attended = Number(course.attended) || 0;
+                            total = Number(course.total) || 0;
+                            extracted = true;
+                        }
+                    }
+
+                    // Strategy 4: Fallback query /courses/{course_id}/attendancedates/withcounts
+                    if (!extracted || total === 0) {
+                        try {
+                            const wcRes = await fetch(`${EZYGO_API}/courses/${course.id}/attendancedates/withcounts`, {
+                                headers: authHeaders
+                            });
+                            if (wcRes.ok) {
+                                const sessions = await wcRes.json();
+                                if (Array.isArray(sessions) && sessions.length > 0) {
+                                    total = sessions.length;
+                                    let presCount = 0;
+                                    sessions.forEach(sess => {
+                                        if (Array.isArray(sess.attendances)) {
+                                            const myRec = sess.attendances.find(a =>
+                                                a.institution_user_id == ezyUser.id ||
+                                                a.user_id == ezyUser.id ||
+                                                a.institution_user_id == ezyUser.institution_user_id
+                                            );
+                                            if (myRec) {
+                                                if (myRec.attendance_type_id === 1 || myRec.is_present || myRec.status === "present") {
+                                                    presCount++;
+                                                }
+                                            } else {
+                                                presCount++;
+                                            }
+                                        }
+                                    });
+                                    attended = presCount;
+                                    extracted = true;
+                                }
+                            }
+                        } catch (e) {
+                            console.warn(`[EzyGo] Fallback attendancedates failed for course ${course.id}:`, e);
+                        }
+                    }
+
+                    // Ensure attended doesn't exceed total
+                    if (attended > total) attended = total;
+
+                    console.log(`[EzyGo Sync] Subject: "${subjectName}" -> Attended: ${attended}/${total} (${total > 0 ? Math.round((attended/total)*100) : 0}%)`);
 
                     // Check existing subjects in user's AttendWise account
                     const existing = subjects.find(s => 

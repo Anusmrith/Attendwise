@@ -1,202 +1,223 @@
 # AttendWise 📊
 
-**AttendWise** is a smart college attendance management system designed to help students track their attendance, understand their academic attendance status, and make better decisions about attending classes.
+**AttendWise** is a modern college attendance management system and cross-platform application designed to help students track their attendance, analyze academic risks, and make data-driven decisions about attending classes.
 
-The application calculates attendance percentages, identifies attendance risks, and provides recommendations based on the student's minimum required attendance percentage.
+Available as a **responsive web app**, **Progressive Web App (PWA)**, and **native mobile app (Android & iOS)** via Capacitor.
+
+---
 
 ## 🚀 Features
 
-* 🔐 User registration and login
-* 👤 Personal user dashboard
-* 📊 Overall attendance summary
-* 📚 Subject-wise attendance tracking
-* 🟢 Safe / 🟡 Warning / 🔴 At Risk status
-* 📈 Attendance percentage calculation
-* 🎯 Custom minimum attendance requirement
-* 🧮 Calculates classes required to reach the minimum percentage
-* 🛌 Calculates how many classes can be missed safely
-* ☁️ Cloud database using Supabase
-* 🔒 Row Level Security for user data
-* 🗑️ Delete subjects
-* 📱 Responsive and mobile-friendly interface
-* ✅ Input validation
+* 🔐 **Secure Authentication**: User registration and login powered by Supabase Auth.
+* 👤 **Personalized Dashboard**: User-specific attendance records protected with Row Level Security (RLS).
+* 📊 **Overall Attendance Summary**: Real-time aggregated attendance percentage across all subjects.
+* 📚 **Subject-wise Tracking**: Track attended vs. total classes for each individual subject.
+* 🟢 **Status Indicators**: Instant visual feedback — **Safe** 🟢, **Warning** 🟡, or **At Risk** 🔴.
+* 🎯 **Custom Thresholds**: Configure your institution's minimum attendance requirement (e.g., 75%, 80%).
+* 🧮 **Smart Recovery Calculation**: Automatically calculates how many consecutive classes you must attend to reach safe standing.
+* 🛌 **Bunk Margin / Safety Margin**: Calculates how many upcoming classes you can safely miss without dropping below the requirement.
+* 📱 **PWA & Offline Ready**: Service worker caching for fast loading and offline reliability; installable directly from the browser on Android, iOS, and desktop.
+* 📲 **Native Mobile Support**: Built-in Capacitor project configurations for native Android (`.apk` / `.aab`) and iOS builds.
+* 🎨 **Modern Responsive UI**: Clean interface optimized for all screen sizes, including notch and safe-area insets.
+* 🗑️ **Subject Management**: Easily add, update, and remove subject records.
+
+---
 
 ## 🛠️ Tech Stack
 
-### Frontend
+### Frontend & Core
+* **HTML5** & **CSS3** (Responsive design, Safe-Area insets, CSS variables)
+* **JavaScript (Vanilla JS ES6+)**
+* **Progressive Web App (PWA)**: Web App Manifest & Service Worker (`sw.js`)
 
-* HTML5
-* CSS3
-* JavaScript (Vanilla JS)
+### Mobile & Cross-Platform
+* **Capacitor 8** (`@capacitor/core`, `@capacitor/cli`)
+* **Android**: Native Android Studio project (`android/`)
+* **iOS**: Native Xcode project (`ios/`)
 
 ### Backend & Database
+* **Supabase**
+* **PostgreSQL**
+* **Supabase Authentication**
+* **Row Level Security (RLS)**
 
-* Supabase
-* PostgreSQL
-* Supabase Authentication
-* Row Level Security (RLS)
+### Tooling & Automation
+* **Node.js** & **npm**
+* **Sharp** (Automated icon generator script)
+* **Git** & **GitHub**
 
-### Development Tools
-
-* Visual Studio Code
-* Git
-* GitHub
+---
 
 ## 📂 Project Structure
 
 ```text
-AttendWise/
+attendwise/
 │
-├── index.html          # Application interface
-├── style.css           # Styling and responsive design
-├── script.js           # Application logic and Supabase integration
-├── README.md           # Project documentation
-└── .gitignore          # Ignored files
+├── index.html               # Main application interface & PWA tags
+├── style.css                # Application styling & responsive layouts
+├── script.js                # Application logic, Supabase client & PWA prompt
+├── sw.js                    # Service Worker for offline caching
+├── manifest.webmanifest     # PWA manifest metadata & app icons configuration
+│
+├── capacitor.config.json    # Capacitor configuration (App ID: com.attendwise.app)
+├── android/                 # Complete native Android Studio project
+├── ios/                     # Complete native iOS Xcode project
+├── icons/                   # App icons (PWA, Android & iOS launcher icons, SVG source)
+│
+├── scripts/
+│   ├── serve.js             # Zero-dependency local development server
+│   ├── build.js             # Asset compiler for mobile synchronization
+│   └── generate-icons.js    # Automated icon generation script
+│
+├── MOBILE_GUIDE.md          # Comprehensive step-by-step mobile build guide
+├── package.json             # NPM dependencies and development scripts
+├── .gitignore               # Git ignored directories (node_modules, build outputs)
+└── README.md                # Project documentation
 ```
-
-## ⚙️ How It Works
-
-1. Create an account or log in.
-2. Enter your subjects.
-3. Enter the number of classes attended.
-4. Enter the total number of classes.
-5. Set your required minimum attendance percentage.
-6. AttendWise calculates your current attendance.
-7. The system determines your attendance status.
-8. If your attendance is below the requirement, AttendWise calculates how many consecutive classes you need to attend to recover.
-9. If your attendance is safe, it calculates how many classes you can potentially miss while remaining above the minimum requirement.
-
-## 📊 Attendance Status
-
-AttendWise uses the user's minimum attendance requirement to determine the current status.
-
-| Status         | Meaning                                                   |
-| -------------- | --------------------------------------------------------- |
-| 🟢 **Safe**    | Attendance is at or above the required percentage         |
-| 🟡 **Warning** | Attendance is close to the required percentage            |
-| 🔴 **At Risk** | Attendance is significantly below the required percentage |
-
-## 🧮 Attendance Calculation
-
-The basic attendance percentage is calculated using:
-
-```text
-Attendance % = (Classes Attended / Total Classes) × 100
-```
-
-For example:
-
-```text
-Classes Attended = 61
-Total Classes = 75
-
-Attendance = (61 / 75) × 100
-           = 81.33%
-```
-
-## 🔐 Authentication & Security
-
-AttendWise uses **Supabase Authentication** for user registration and login.
-
-Each subject is associated with the authenticated user's ID.
-
-Supabase **Row Level Security (RLS)** ensures that users can only access their own attendance records.
-
-> Never add a Supabase `service_role` or secret key to frontend JavaScript. Only use the browser-safe publishable/anon key.
-
-## 🗄️ Database
-
-The application stores subject information in a PostgreSQL database through Supabase.
-
-Each subject contains information such as:
-
-```text
-id
-user_id
-subject_name
-attended
-total
-minimum_percentage
-created_at
-```
-
-## 💻 Running the Project Locally
-
-### 1. Clone the repository
-
-```bash
-git clone https://github.com/Anusmrith/AttendWise.git
-```
-
-### 2. Open the project
-
-Open the project folder in Visual Studio Code.
-
-### 3. Configure Supabase
-
-Create a Supabase project and configure the required database table and authentication settings.
-
-Add your Supabase project URL and publishable key to:
-
-```text
-script.js
-```
-
-### 4. Run the application
-
-Open `index.html` in your browser.
-
-For the best development experience, you can also use the **Live Server** extension in VS Code.
-
-## 🔮 Future Improvements
-
-Possible future improvements include:
-
-* 📅 Attendance history
-* 📈 Attendance charts and analytics
-* 📆 Timetable integration
-* 🔔 Attendance alerts and notifications
-* 📱 Progressive Web App (PWA)
-* 🎓 College timetable integration
-* 📊 Semester-level attendance analytics
-* 📥 Export attendance reports
-* 🌙 Dark mode
-* 🤖 AI-powered attendance predictions
-
-## 🎯 Learning Goals
-
-This project was developed as a practical learning project to understand:
-
-* HTML structure
-* CSS responsive design
-* JavaScript programming
-* DOM manipulation
-* Form handling
-* Authentication
-* Database operations
-* PostgreSQL
-* Supabase
-* Row Level Security
-* Git and GitHub
-* Full-stack web development
-
-## 👨‍💻 Author
-
-**Anusmrith M M**
-
-BTech Computer Science
-College of Engineering Karunagappally
-Graduating 2027
-
-### 🔗 Links
-
-* GitHub: `https://github.com/Anusmrith`
-* LinkedIn: Add your LinkedIn profile here
-
-## ⭐ Support
-
-If you find this project useful, consider giving the repository a ⭐ on GitHub.
 
 ---
 
-**AttendWise — Know your attendance. Plan smarter.**
+## ⚙️ How It Works
+
+1. **Sign Up / Log In**: Authenticate using your email and password.
+2. **Add Subjects**: Enter subject names along with classes attended and total classes conducted.
+3. **Set Minimum Requirement**: Set your target attendance percentage (default is typically 75%).
+4. **Review Metrics**:
+   - **Current Percentage**: `(Attended / Total) × 100`
+   - **Status Pill**: Instant indicator based on your threshold.
+   - **Recommendations**:
+     - If below requirement: Displays exact number of consecutive classes required to get back on track.
+     - If above requirement: Displays safe margin of classes that can be missed without falling below the limit.
+
+---
+
+## 📊 Attendance Status Logic
+
+AttendWise compares your percentage directly against your custom target:
+
+| Status | Condition | Meaning |
+| :--- | :--- | :--- |
+| 🟢 **Safe** | `Percentage >= Target` | Attendance is safe. Safe margin shows how many classes you can miss. |
+| 🟡 **Warning** | `Percentage` within 5% below target | Close to the threshold; attendance needs immediate attention. |
+| 🔴 **At Risk** | `Percentage` significantly below target | Urgent action required; shows consecutive classes needed to recover. |
+
+---
+
+## 🧮 Calculation Formulas
+
+### 1. Basic Attendance Percentage
+$$\text{Attendance \%} = \left( \frac{\text{Attended Classes}}{\text{Total Classes}} \right) \times 100$$
+
+### 2. Classes Needed to Recover
+To find classes ($x$) needed to reach target percentage ($T$):
+$$\frac{\text{Attended} + x}{\text{Total} + x} \ge \frac{T}{100} \implies x = \left\lceil \frac{T \times \text{Total} - 100 \times \text{Attended}}{100 - T} \right\rceil$$
+
+### 3. Safe Classes to Miss
+To find classes ($y$) that can be missed without dropping below target ($T$):
+$$\frac{\text{Attended}}{\text{Total} + y} \ge \frac{T}{100} \implies y = \left\lfloor \frac{100 \times \text{Attended} - T \times \text{Total}}{T} \right\rfloor$$
+
+---
+
+## 🔐 Authentication & Security
+
+* **Supabase Authentication**: User passwords and sessions are securely managed through Supabase.
+* **Row Level Security (RLS)**: PostgreSQL RLS policies ensure that authenticated users can only query, insert, update, or delete their own attendance records.
+* **API Key Safety**: Only the browser-safe `anon` / publishable key is used on client side. Never expose the `service_role` key.
+
+---
+
+## 💻 Getting Started Locally
+
+### 1. Clone the Repository
+```bash
+git clone https://github.com/Anusmrith/Attendwise.git
+cd Attendwise
+```
+
+### 2. Install Dependencies
+```bash
+npm install
+```
+
+### 3. Configure Supabase
+Ensure your Supabase project URL and anon public key are set in `script.js`:
+```javascript
+const SUPABASE_URL = "https://your-project.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "your-anon-publishable-key";
+```
+
+### 4. Run the Local Development Server
+```bash
+npm run serve
+```
+Open [http://localhost:3000](http://localhost:3000) in your browser. (Alternatively, you can open `index.html` using VS Code Live Server).
+
+---
+
+## 📱 Mobile Installation & Build Guide
+
+AttendWise offers multiple options for mobile devices. For complete step-by-step instructions, see **[MOBILE_GUIDE.md](MOBILE_GUIDE.md)**.
+
+### Option A: Install as PWA (Android & iOS)
+* **Android**: Open in Chrome and tap **"Install App"** on the prompt or browser menu.
+* **iOS**: Open in Safari, tap the **Share** icon, and tap **"Add to Home Screen"**.
+
+### Option B: Build Native Android App (`.apk`)
+```bash
+# Sync web code to native Android project
+npm run cap:sync
+
+# Open in Android Studio to build APK
+npm run cap:android
+```
+In Android Studio: **Build** → **Build Bundle(s) / APK(s)** → **Build APK(s)**.
+
+### Option C: Build Native iOS App
+```bash
+# Sync web code to native iOS project
+npm run cap:sync
+
+# Open in Xcode (macOS required)
+npm run cap:ios
+```
+
+---
+
+## 📜 NPM Scripts Reference
+
+| Command | Description |
+| :--- | :--- |
+| `npm run serve` | Starts the zero-dependency local preview web server |
+| `npm run build` | Compiles web assets for distribution and mobile packaging |
+| `npm run generate-icons` | Generates all app icons and splash assets from `icons/icon.svg` |
+| `npm run cap:sync` | Builds web assets and synchronizes Android & iOS native directories |
+| `npm run cap:android` | Builds, synchronizes, and opens the project in Android Studio |
+| `npm run cap:ios` | Builds, synchronizes, and opens the project in Xcode |
+
+---
+
+## 🔮 Future Roadmap
+
+* 📅 Attendance history and timeline logging
+* 📈 Visual attendance analytics & interactive charts
+* 📆 Timetable & schedule integration
+* 🔔 Push notifications & class reminder alerts
+* 🎓 Semester-level attendance exports (PDF/CSV)
+* 🌙 Dedicated dark / light theme switcher
+* 🤖 AI-powered attendance predictions and trend forecasting
+
+---
+
+## 👨‍💻 Author
+
+**Anusmrith M M**  
+BTech Computer Science, College of Engineering Karunagappally (Graduating 2027)
+
+* **GitHub**: [@Anusmrith](https://github.com/Anusmrith)
+* **Project Repository**: [AttendWise](https://github.com/Anusmrith/Attendwise)
+
+---
+
+## ⭐ Support
+
+If you find AttendWise useful, consider giving the repository a ⭐ on GitHub!
